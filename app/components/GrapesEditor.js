@@ -10,7 +10,7 @@ export default function GrapesEditor() {
   const editorRef = useRef(null);
 
   useEffect(() => {
-    if (!editorRef.current) return;
+    if (typeof window === "undefined" || !editorRef.current) return;
 
     const editor = grapesjs.init({
       container: editorRef.current,
@@ -20,48 +20,75 @@ export default function GrapesEditor() {
       storageManager: false,
       plugins: [gjsPresetWebpage, gjsTabs],
     });
-    editor.BlockManager.add('carousel-tabs', {
+
+    editor.Components.addType("carousel", {
+      model: {
+        defaults: {
+          name: "Carousel",
+          traits: [
+            {
+              type: "number",
+              label: "Number of Slides",
+              name: "numSlides",
+              min: 1,
+              changeProp: 1,
+            },
+          ],
+          slides: [
+            { src: "https://via.placeholder.com/800x400/ff7f7f/333333?text=Slide+1", alt: "Slide 1" },
+            { src: "https://via.placeholder.com/800x400/7f7fff/333333?text=Slide+2", alt: "Slide 2" },
+            { src: "https://via.placeholder.com/800x400/7fff7f/333333?text=Slide+3", alt: "Slide 3" },
+          ],
+          script: function () {
+            const numSlides = this.get('numSlides') || this.slides.length;
+
+            const updateCarousel = () => {
+              const container = this.querySelector('.slides-container');
+              const slides = this.slides || [];
+              let html = '';
+
+              slides.forEach((slide, index) => {
+                html += `
+                  <div class="slide" style="flex: 1 0 100%; position: relative;">
+                    <img src="${slide.src}" alt="${slide.alt}" style="width: 100%; display: block;">
+                  </div>`;
+              });
+
+              container.innerHTML = html;
+            };
+
+            updateCarousel();
+          },
+        },
+      },
+      view: {
+        onRender() {
+          const numSlides = this.model.get('numSlides') || this.model.slides.length;
+          const container = this.el.querySelector('.slides-container');
+          this.model.slides = Array(numSlides).fill().map((_, i) => ({
+            src: `https://via.placeholder.com/800x400?text=Slide+${i + 1}`,
+            alt: `Slide ${i + 1}`,
+          }));
+
+          this.model.set('content', this.model.slides.map((slide, index) => `
+            <div class="slide" style="flex: 1 0 100%; position: relative;">
+              <img src="${slide.src}" alt="${slide.alt}" style="width: 100%; display: block;">
+            </div>
+          `).join(''));
+
+          this.render();
+        }
+      },
+    });
+
+    editor.BlockManager.add('carousel-block', {
       label: 'Carousel',
-      content: `
-        <div class="carousel" style="width: 100%; max-width: 800px; margin: 50px auto; position: relative; overflow: hidden; border: 2px solid #ddd; border-radius: 10px;">
-          <input type="radio" name="slider" id="slide1" checked style="display: none;">
-          <input type="radio" name="slider" id="slide2" style="display: none;">
-          <input type="radio" name="slider" id="slide3" style="display: none;">
-
-          <div class="slides-container" style="display: flex; width: 300%; transition: transform 0.5s ease-in-out;">
-            <div class="slide" style="flex: 1 0 100%; position: relative;">
-              <img src="https://via.placeholder.com/800x400/ff7f7f/333333?text=Slide+1" alt="Slide 1" style="width: 100%; display: block;">
-            </div>
-            <div class="slide" style="flex: 1 0 100%; position: relative;">
-              <img src="https://via.placeholder.com/800x400/7f7fff/333333?text=Slide+2" alt="Slide 2" style="width: 100%; display: block;">
-            </div>
-            <div class="slide" style="flex: 1 0 100%; position: relative;">
-              <img src="https://via.placeholder.com/800x400/7fff7f/333333?text=Slide+3" alt="Slide 3" style="width: 100%; display: block;">
-            </div>
-          </div>
-
-          <div style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; justify-content: center;">
-            <label for="slide1" style="width: 10px; height: 10px; border-radius: 50%; background-color: #bbb; margin: 0 5px; cursor: pointer;"></label>
-            <label for="slide2" style="width: 10px; height: 10px; border-radius: 50%; background-color: #bbb; margin: 0 5px; cursor: pointer;"></label>
-            <label for="slide3" style="width: 10px; height: 10px; border-radius: 50%; background-color: #bbb; margin: 0 5px; cursor: pointer;"></label>
-          </div>
-
-          <style>
-            #slide1:checked ~ .slides-container {
-              transform: translateX(0%);
-            }
-            #slide2:checked ~ .slides-container {
-              transform: translateX(-100%);
-            }
-            #slide3:checked ~ .slides-container {
-              transform: translateX(-200%);
-            }
-            input[type="radio"]:checked + label {
-              background-color: #333;
-            }
-          </style>
-        </div>
-      `,
+      content: {
+        type: 'carousel',
+        components: `<div class="carousel">
+          <div class="slides-container" style="display: flex; width: 300%; transition: transform 0.5s ease-in-out;"></div>
+        </div>`,
+      },
       category: 'Extra',
     });
 
